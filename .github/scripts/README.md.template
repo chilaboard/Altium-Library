@@ -1,0 +1,44 @@
+# Altium-library
+{%for libType, libs in libraries.items() %}
+- <details>
+  {%if libType == 'schlibs' -%}
+  <summary>Schematic libraries <code>number of libraries: {{libs|length}}</code> <code>total number of components : {{libs|get_total_comp}}</code></summary>
+
+  {% else -%}
+  <summary>Pcb libraries <code>number of libraries: {{libs|length}}</code> <code>total number of components : {{libs|get_total_comp}}</code></summary>
+
+  {% endif -%}
+  {%for libname, comps in libs.items() -%}
+  - <details>
+    <summary>{{libname}}  <code>number of components : {{comps|length}}</code></summary>
+
+    {%for comp in comps -%}
+    - <details>
+      <summary>{{ comp.values()|first }}</summary>
+
+      {%for comp_lbl, comp_val in comp.items() -%}
+      {%if loop.index > 1 -%}
+      {%if comp_lbl == 'Models' and comp_val.__class__.__name__ == 'list' -%}
+      - <details>
+        <summary>Models  <code>number of models : {{comp_val|length}}</code></summary>
+
+        {%for model in comp_val -%}
+        {%for model_lbl, model_val in model.items() -%}
+        {{model_lbl}} : <code>{{model_val}}</code>
+        {% endfor -%}
+        {% endfor -%}
+        </details>
+      {% else -%}
+        {{comp_lbl}} : <code>{{comp_val}}</code>
+
+      {% endif -%}
+      {% endif -%}
+      {% endfor -%}
+      </details>
+
+    {% endfor -%}
+    </details>
+
+  {% endfor -%}
+  </details>
+{% endfor %}
