@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 import json
 import glob
@@ -86,22 +87,45 @@ def get_total_comp(libs):
     return sum
 
 
-def generate_readme(libraries):
+def get_webpage_subdomain():
+    return os.environ["BROWSING_WEBPAGE_SUBDOMAIN"]
+
+
+def get_webpage_path():
+    return os.environ["BROWSING_WEBPAGE_PATH"]
+
+
+def render_template(libraries, file_path):
     env = Environment(loader=FileSystemLoader("."), autoescape=select_autoescape())
     env.filters["get_total_comp"] = get_total_comp
-    template_file_path = Path(__file__).resolve().parent.relative_to(Path.cwd().as_posix()).as_posix() + "/"
-    template = env.get_template(template_file_path + "README.md.template")
+    env.globals["get_webpage_subdomain"] = get_webpage_subdomain
+    env.globals["get_webpage_path"] = get_webpage_path
+    template_dir_path = (
+        Path(__file__).resolve().parent.relative_to(Path.cwd().as_posix()).as_posix()
+        + "/"
+    )
+    template_file = env.get_template(template_dir_path + file_path)
+    return template_file.render(libraries=libraries)
+
+
+def generate_readme(libraries):
+    readme = render_template(libraries, "README.md.template")
     with open("README.md", "w") as readme_fhdl:
-        readme_fhdl.write(template.render(libraries=libraries))
+        readme_fhdl.write(readme)
+
+
+def generate_browsing_webpage(libraries):
+    browsing_webpage = render_template(libraries, "index.html.template")
+    with open("index.html", "w") as browsing_webpage_fhdl:
+        browsing_webpage_fhdl.write(browsing_webpage)
 
 
 def main():
     libraries = inspect_libraries()
     generate_json(libraries)
     generate_readme(libraries)
+    generate_browsing_webpage(libraries)
 
 
 if __name__ == "__main__":
     main()
-
-    # TODO: write github action
