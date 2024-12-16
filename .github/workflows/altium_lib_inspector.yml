@@ -15,6 +15,7 @@ jobs:
     env:
       BROWSING_WEBPAGE_SUBDOMAIN: ${{ github.repository_owner }}
       BROWSING_WEBPAGE_REPO: ${{ github.repository }}
+      ACTIONS_ALLOW_UNSECURE_COMMANDS: "true"
     steps:
       - run: echo ::set-env name=BROWSING_WEBPAGE_PATH::$(echo $BROWSING_WEBPAGE_REPO | awk -F / '{print $2}')
         shell: bash
