@@ -1,0 +1,8 @@
+# Altium-library
+
+| Statistics |  Libraries  |  Components  |
+|---|---|---|
+|  Schematic | {{libraries['schlibs']|length}} | {{libraries['schlibs']|get_total_comp}} |
+|        Pcb | {{libraries['pcblibs']|length}} | {{libraries['pcblibs']|get_total_comp}} |
+
+## [Browse Libraries](https://{{get_webpage_subdomain()}}.github.io/{{get_webpage_path()}})
