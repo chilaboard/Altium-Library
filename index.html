@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Component List Search (Regex + Pagination)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 2em; }
+    input { padding: 0.5em; width: 300px; }
+    table { border-collapse: collapse; margin-top: 1em; width: 100%; }
+    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
+    tr:nth-child(even) { background-color: #f9f9f9; }
+    .pagination { margin-top: 1em; }
+    .pagination button { margin: 0 5px; padding: 0.5em 1em; }
+    .error { color: red; margin-top: 1em; }
+  </style>
+</head>
+<body>
+
+<h2>Search Component List (Regex Supported)</h2>
+<input type="text" id="searchInput" placeholder="Type regex to search..." />
+<div class="error" id="errorBox"></div>
+<table id="resultsTable"></table>
+<div class="pagination" id="paginationControls"></div>
+
+<!-- Load PapaParse from CDN -->
+<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+<script>
+  let fullData = [];
+  let filteredData = [];
+  let currentPage = 1;
+  const pageSize = 100;
+
+  async function loadCSV() {
+    const response = await fetch('component_list.csv');
+    const csvText = await response.text();
+
+    return Papa.parse(csvText, {
+      header: true,
+      skipEmptyLines: true
+    }).data;
+  }
+
+  function displayPage(data, page) {
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize;
+    const pageData = data.slice(start, end);
+
+    const table = document.getElementById('resultsTable');
+    table.innerHTML = '';
+
+    if (pageData.length === 0) {
+      table.innerHTML = '<tr><td>No results found.</td></tr>';
+      return;
+    }
+
+    const headers = Object.keys(pageData[0]);
+    const thead = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+    table.innerHTML += thead;
+
+    pageData.forEach(row => {
+      const tr = '<tr>' + headers.map(h => `<td>${row[h]}</td>`).join('') + '</tr>';
+      table.innerHTML += tr;
+    });
+
+    renderPaginationControls(data.length, page);
+  }
+
+  function renderPaginationControls(totalItems, page) {
+    const totalPages = Math.ceil(totalItems / pageSize);
+    const container = document.getElementById('paginationControls');
+    container.innerHTML = '';
+
+    if (totalPages <= 1) return;
+
+    for (let i = 1; i <= totalPages; i++) {
+      const btn = document.createElement('button');
+      btn.textContent = i;
+      btn.disabled = i === page;
+      btn.onclick = () => {
+        currentPage = i;
+        displayPage(filteredData, currentPage);
+      };
+      container.appendChild(btn);
+    }
+  }
+
+  function filterDataRegex(query) {
+    let regex;
+    try {
+      regex = new RegExp(query, 'i'); // case-insensitive
+    } catch (e) {
+      return { error: e.message, results: [] };
+    }
+
+    const results = fullData.filter(row =>
+      Object.values(row).some(value => regex.test(value))
+    );
+
+    return { error: null, results };
+  }
+
+  function debounce(fn, delay = 300) {
+    let timeout;
+    return function (...args) {
+      clearTimeout(timeout);
+      timeout = setTimeout(() => fn.apply(this, args), delay);
+    };
+  }
+
+  document.addEventListener('DOMContentLoaded', async () => {
+    fullData = await loadCSV();
+    filteredData = fullData;
+    displayPage(filteredData, currentPage);
+
+    const searchInput = document.getElementById('searchInput');
+    const errorBox = document.getElementById('errorBox');
+
+    searchInput.addEventListener('input', debounce(e => {
+      const query = e.target.value;
+      currentPage = 1;
+
+      const { error, results } = filterDataRegex(query);
+
+      if (error) {
+        errorBox.textContent = `Invalid regex: ${error}`;
+        document.getElementById('resultsTable').innerHTML = '';
+        document.getElementById('paginationControls').innerHTML = '';
+        return;
+      }
+
+      errorBox.textContent = '';
+      filteredData = results;
+      displayPage(filteredData, currentPage);
+    }));
+  });
+</script>
+
+</body>
+</html>
