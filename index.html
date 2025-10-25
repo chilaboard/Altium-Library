@@ -3,138 +3,478 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Component List Search (Regex + Pagination)</title>
+  <title>ChilaBoard - Component Library</title>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 2em; }
-    input { padding: 0.5em; width: 300px; }
-    table { border-collapse: collapse; margin-top: 1em; width: 100%; }
-    th, td { border: 1px solid #ccc; padding: 0.5em; text-align: left; }
-    tr:nth-child(even) { background-color: #f9f9f9; }
-    .pagination { margin-top: 1em; }
-    .pagination button { margin: 0 5px; padding: 0.5em 1em; }
-    .error { color: red; margin-top: 1em; }
+    :root {
+      --bg-color: #ffffff;
+      --text-color: #000000;
+      --border-color: #e0e0e0;
+      --header-bg: #f9f9f9;
+      --hover-bg: #f0f0f0;
+      --active-bg: #e0e0e0;
+      --error-color: #d00000;
+      --sidebar-bg: #fdfdfd;
+      --sidebar-border: #e0e0e0;
+      --footer-text: #888888;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0;
+      padding: 0;
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* --- Layout --- */
+    #sidebar {
+      width: 280px;
+      flex-shrink: 0;
+      background-color: var(--sidebar-bg);
+      border-right: 1px solid var(--sidebar-border);
+      padding: 1.5em;
+      overflow-y: auto;
+      height: 100vh;
+      position: sticky;
+      top: 0;
+    }
+
+    #main-content {
+      flex-grow: 1;
+      padding: 2em;
+      max-width: 1200px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    #content-wrap {
+      flex: 1;
+    }
+
+    header {
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 1.5em;
+      margin-bottom: 1.5em;
+    }
+
+    h2 {
+      margin: 0 0 0.5em 0;
+    }
+
+    /* --- Sidebar Filters --- */
+    #sidebar h3 {
+      font-size: 1.1em;
+      font-weight: 600;
+      margin-top: 0;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5em;
+    }
+
+    #libraryFilters {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .filter-btn {
+      width: 100%;
+      text-align: left;
+      padding: 0.6em 0.8em;
+      border: 1px solid transparent;
+      background-color: transparent;
+      color: var(--text-color);
+      cursor: pointer;
+      font-size: 0.9em;
+      border-radius: 5px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .filter-btn:hover {
+      background-color: var(--hover-bg);
+    }
+
+    .filter-btn.active {
+      background-color: var(--active-bg);
+      font-weight: 600;
+    }
+
+    /* --- Search & Errors --- */
+    #searchInput {
+      padding: 0.8em 1em;
+      width: 100%;
+      font-size: 1em;
+      border: 1px solid var(--border-color);
+      border-radius: 6px;
+      box-sizing: border-box; /* Important for 100% width */
+    }
+
+    .error {
+      color: var(--error-color);
+      margin-top: 0.5em;
+      height: 1.2em;
+    }
+
+    /* --- Results Area --- */
+    .library-group {
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      margin-bottom: 1.5em;
+      overflow: hidden; /* To contain table borders */
+    }
+
+    .library-header {
+      background-color: var(--header-bg);
+      padding: 0.8em 1.2em;
+      font-weight: 600;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    table {
+      border-collapse: collapse;
+      width: 100%;
+    }
+
+    th, td {
+      padding: 0.8em 1.2em;
+      text-align: left;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    tr:nth-child(even) {
+      background-color: transparent; /* Remove old striping */
+    }
+    
+    th {
+      font-weight: 600;
+      font-size: 0.9em;
+      color: #555;
+    }
+
+    #resultsContainer {
+      margin-top: 1em;
+    }
+
+    #resultsContainer.loading {
+      text-align: center;
+      padding: 3em;
+      font-size: 1.2em;
+      color: #888;
+    }
+
+    /* --- Pagination --- */
+    .pagination {
+      margin-top: 2em;
+      text-align: center;
+    }
+
+    .pagination button {
+      margin: 0 3px;
+      padding: 0.6em 1em;
+      font-size: 0.9em;
+      border: 1px solid var(--border-color);
+      background-color: var(--bg-color);
+      color: var(--text-color);
+      cursor: pointer;
+      border-radius: 5px;
+    }
+
+    .pagination button:hover {
+      background-color: var(--hover-bg);
+    }
+
+    .pagination button:disabled {
+      background-color: var(--active-bg);
+      font-weight: 600;
+      cursor: default;
+    }
+    
+    /* --- Footer --- */
+    footer {
+      text-align: center;
+      padding-top: 3em;
+      margin-top: 2em;
+      font-size: 0.9em;
+      color: var(--footer-text);
+      border-top: 1px solid var(--border-color);
+    }
+    
+    footer span {
+      color: #e25555; /* Heart color */
+    }
+
   </style>
 </head>
 <body>
 
-<h2>Search Component List (Regex Supported)</h2>
-<input type="text" id="searchInput" placeholder="Type regex to search..." />
-<div class="error" id="errorBox"></div>
-<table id="resultsTable"></table>
-<div class="pagination" id="paginationControls"></div>
+  <aside id="sidebar">
+    <h3>Libraries</h3>
+    <div id="libraryFilters">
+      </div>
+  </aside>
 
-<!-- Load PapaParse from CDN -->
-<script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
-<script>
-  let fullData = [];
-  let filteredData = [];
-  let currentPage = 1;
-  const pageSize = 100;
+  <main id="main-content">
+    <div id="content-wrap">
+      <header>
+        <h2>ChilaBoard Component Search</h2>
+        <input type="text" id="searchInput" placeholder="Type regex to search parts or descriptions..." />
+        <div class="error" id="errorBox"></div>
+      </header>
+      
+      <div id="resultsContainer" class="loading">Loading component data...</div>
+      
+      <div class="pagination" id="paginationControls"></div>
+    </div>
+    
+    <footer>
+      Made with <span>&lt;3</span> by ChilaBoard
+    </footer>
+  </main>
 
-  async function loadCSV() {
-    const response = await fetch('component_list.csv');
-    const csvText = await response.text();
 
-    return Papa.parse(csvText, {
-      header: true,
-      skipEmptyLines: true
-    }).data;
-  }
+  <script>
+    let fullData = [];
+    let filteredData = [];
+    let uniqueLibraries = [];
+    let selectedLibrary = null; // null means 'All'
+    let currentPage = 1;
+    const pageSize = 100;
 
-  function displayPage(data, page) {
-    const start = (page - 1) * pageSize;
-    const end = start + pageSize;
-    const pageData = data.slice(start, end);
+    // --- Data Loading & Pre-processing ---
 
-    const table = document.getElementById('resultsTable');
-    table.innerHTML = '';
+    async function loadCSV() {
+      const response = await fetch('component_list.csv');
+      const csvText = await response.text();
 
-    if (pageData.length === 0) {
-      table.innerHTML = '<tr><td>No results found.</td></tr>';
-      return;
+      const parseResult = Papa.parse(csvText, {
+        header: true,
+        skipEmptyLines: true
+      });
+      
+      if (parseResult.errors.length > 0) {
+        console.error("Errors parsing CSV:", parseResult.errors);
+        document.getElementById('resultsContainer').innerHTML = 'Error loading CSV file. Check console for details.';
+        return [];
+      }
+      
+      return parseResult.data;
     }
 
-    const headers = Object.keys(pageData[0]);
-    const thead = '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
-    table.innerHTML += thead;
+    function processData(data) {
+      fullData = data;
+      filteredData = fullData;
+      
+      // Get unique library names and sort them
+      const libSet = new Set(data.map(row => row['lib name']));
+      uniqueLibraries = Array.from(libSet).sort();
+    }
 
-    pageData.forEach(row => {
-      const tr = '<tr>' + headers.map(h => `<td>${row[h]}</td>`).join('') + '</tr>';
-      table.innerHTML += tr;
-    });
+    // --- Rendering Functions ---
 
-    renderPaginationControls(data.length, page);
-  }
+    function renderLibraryFilters() {
+      const container = document.getElementById('libraryFilters');
+      container.innerHTML = ''; // Clear existing
 
-  function renderPaginationControls(totalItems, page) {
-    const totalPages = Math.ceil(totalItems / pageSize);
-    const container = document.getElementById('paginationControls');
-    container.innerHTML = '';
-
-    if (totalPages <= 1) return;
-
-    for (let i = 1; i <= totalPages; i++) {
-      const btn = document.createElement('button');
-      btn.textContent = i;
-      btn.disabled = i === page;
-      btn.onclick = () => {
-        currentPage = i;
-        displayPage(filteredData, currentPage);
+      // Add "All Libraries" button
+      const allBtn = document.createElement('button');
+      allBtn.textContent = 'All Libraries';
+      allBtn.className = 'filter-btn active'; // Active by default
+      allBtn.onclick = () => {
+        selectedLibrary = null;
+        document.querySelectorAll('.filter-btn.active').forEach(btn => btn.classList.remove('active'));
+        allBtn.classList.add('active');
+        updateResults();
       };
-      container.appendChild(btn);
+      container.appendChild(allBtn);
+
+      // Add button for each library
+      uniqueLibraries.forEach(libName => {
+        const btn = document.createElement('button');
+        btn.textContent = libName;
+        btn.className = 'filter-btn';
+        btn.title = libName; // For full name on hover
+        btn.onclick = () => {
+          selectedLibrary = libName;
+          document.querySelectorAll('.filter-btn.active').forEach(btn => btn.classList.remove('active'));
+          btn.classList.add('active');
+          updateResults();
+        };
+        container.appendChild(btn);
+      });
     }
-  }
 
-  function filterDataRegex(query) {
-    let regex;
-    try {
-      regex = new RegExp(query, 'i'); // case-insensitive
-    } catch (e) {
-      return { error: e.message, results: [] };
-    }
+    function displayPage(data, page) {
+      const start = (page - 1) * pageSize;
+      const end = start + pageSize;
+      const pageData = data.slice(start, end);
+      
+      const container = document.getElementById('resultsContainer');
+      container.innerHTML = '';
+      container.classList.remove('loading');
 
-    const results = fullData.filter(row =>
-      Object.values(row).some(value => regex.test(value))
-    );
-
-    return { error: null, results };
-  }
-
-  function debounce(fn, delay = 300) {
-    let timeout;
-    return function (...args) {
-      clearTimeout(timeout);
-      timeout = setTimeout(() => fn.apply(this, args), delay);
-    };
-  }
-
-  document.addEventListener('DOMContentLoaded', async () => {
-    fullData = await loadCSV();
-    filteredData = fullData;
-    displayPage(filteredData, currentPage);
-
-    const searchInput = document.getElementById('searchInput');
-    const errorBox = document.getElementById('errorBox');
-
-    searchInput.addEventListener('input', debounce(e => {
-      const query = e.target.value;
-      currentPage = 1;
-
-      const { error, results } = filterDataRegex(query);
-
-      if (error) {
-        errorBox.textContent = `Invalid regex: ${error}`;
-        document.getElementById('resultsTable').innerHTML = '';
-        document.getElementById('paginationControls').innerHTML = '';
+      if (pageData.length === 0) {
+        container.innerHTML = '<p>No results found.</p>';
+        renderPaginationControls(0, 1);
         return;
       }
 
-      errorBox.textContent = '';
-      filteredData = results;
+      // Group the data by library name
+      const groupedData = pageData.reduce((acc, row) => {
+        const lib = row['lib name'];
+        if (!acc[lib]) {
+          acc[lib] = [];
+        }
+        acc[lib].push(row);
+        return acc;
+      }, {});
+
+      // Render a card for each group
+      for (const libName in groupedData) {
+        const components = groupedData[libName];
+        
+        const groupEl = document.createElement('div');
+        groupEl.className = 'library-group';
+        
+        let tableHTML = `
+          <div class="library-header">${libName} (${components.length} ${components.length > 1 ? 'parts' : 'part'})</div>
+          <table>
+            <thead>
+              <tr>
+                <th>Part</th>
+                <th>Description</th>
+                <th>Num</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        components.forEach(row => {
+          // Display only relevant columns
+          tableHTML += `
+            <tr>
+              <td>${row['part'] || ''}</td>
+              <td>${row['desc'] || ''}</td>
+              <td>${row['num'] || ''}</td>
+            </tr>
+          `;
+        });
+
+        tableHTML += '</tbody></table>';
+        groupEl.innerHTML = tableHTML;
+        container.appendChild(groupEl);
+      }
+
+      renderPaginationControls(data.length, page);
+    }
+
+    function renderPaginationControls(totalItems, page) {
+      const totalPages = Math.ceil(totalItems / pageSize);
+      const container = document.getElementById('paginationControls');
+      container.innerHTML = '';
+
+      if (totalPages <= 1) return;
+      
+      // Simple pagination: Prev, Current / Total, Next
+      // For 100+ pages, a numbered list is not user-friendly
+      
+      const prevBtn = document.createElement('button');
+      prevBtn.textContent = 'Previous';
+      prevBtn.disabled = page === 1;
+      prevBtn.onclick = () => {
+        currentPage--;
+        displayPage(filteredData, currentPage);
+      };
+      container.appendChild(prevBtn);
+
+      const pageInfo = document.createElement('span');
+      pageInfo.textContent = ` Page ${page} of ${totalPages} `;
+      pageInfo.style.padding = '0 1em';
+      pageInfo.style.fontSize = '0.9em';
+      container.appendChild(pageInfo);
+
+      const nextBtn = document.createElement('button');
+      nextBtn.textContent = 'Next';
+      nextBtn.disabled = page === totalPages;
+      nextBtn.onclick = () => {
+        currentPage++;
+        displayPage(filteredData, currentPage);
+      };
+      container.appendChild(nextBtn);
+    }
+
+    // --- Filtering Logic ---
+
+    function filterData(query, dataToFilter) {
+      let regex;
+      const errorBox = document.getElementById('errorBox');
+      try {
+        regex = new RegExp(query, 'i'); // case-insensitive
+        errorBox.textContent = '';
+      } catch (e) {
+        errorBox.textContent = `Invalid regex: ${e.message}`;
+        return []; // Return no results for invalid regex
+      }
+
+      return dataToFilter.filter(row =>
+        // Search only 'part' and 'desc' columns
+        regex.test(row['part']) || regex.test(row['desc'])
+      );
+    }
+
+    function updateResults() {
+      const query = document.getElementById('searchInput').value;
+      
+      // 1. Filter by selected library (if any)
+      let currentFilter = fullData;
+      if (selectedLibrary) {
+        currentFilter = fullData.filter(row => row['lib name'] === selectedLibrary);
+      }
+      
+      // 2. Filter by regex query (if any)
+      if (query) {
+        currentFilter = filterData(query, currentFilter);
+      }
+      
+      filteredData = currentFilter;
+      currentPage = 1; // Reset to first page
       displayPage(filteredData, currentPage);
-    }));
-  });
-</script>
+    }
+
+    function debounce(fn, delay = 300) {
+      let timeout;
+      return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => fn.apply(this, args), delay);
+      };
+    }
+
+    // --- Initialization ---
+
+    document.addEventListener('DOMContentLoaded', async () => {
+      // 1. Load and process data
+      const data = await loadCSV();
+      if (data.length === 0) return; // Stop if CSV failed to load
+      
+      processData(data);
+
+      // 2. Render UI components
+      renderLibraryFilters();
+      displayPage(filteredData, currentPage);
+
+      // 3. Set up event listeners
+      const searchInput = document.getElementById('searchInput');
+      searchInput.addEventListener('input', debounce(updateResults, 300));
+    });
+  </script>
 
 </body>
 </html>
